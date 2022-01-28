@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { AuthDto } from './dtos';
-import * as argon from 'argon2';
 import { UsersService } from 'src/users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { UserEntity } from 'src/users/entities/user.entity';
@@ -13,19 +12,17 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(authDto: AuthDto): Promise<any> {
-    const user = await this.usersService.findOneByEmail(authDto.email);
-    if (!user) return null;
-    const validPassword = await argon.verify(user.password, authDto.password);
-    if (!validPassword) return null;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  }
-
-  async register(authDto: AuthDto): Promise<Tokens> {
+  async registerUser(authDto: AuthDto): Promise<Tokens> {
     const user = await this.usersService.create(authDto);
     const tokens = await this.getTokens(user);
+    await this.usersService.updateRefreshToken(tokens.refresh_token, user.id);
+    return tokens;
+  }
+
+  async loginUser(authDto: AuthDto): Promise<Tokens> {
+    const user = await this.usersService.validateUser(authDto);
+    const tokens = await this.getTokens(user);
+    await this.usersService.updateRefreshToken(tokens.refresh_token, user.id);
     return tokens;
   }
 
